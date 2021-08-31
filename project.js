@@ -3,14 +3,14 @@ const { createRequestBuilder } = require('@commercetools/api-request-builder')
 const { createAuthMiddlewareForClientCredentialsFlow } = require('@commercetools/sdk-middleware-auth')
 const { createHttpMiddleware } = require('@commercetools/sdk-middleware-http')
 const fetch = require('node-fetch')
+const sdk = require('api')('@convictional/v1.0#1j0kv34kt0n3x28');
 
 require('dotenv').config()
-
-console.log('Getting started with commercetools Nodejs SDK');
 
 const { 
     ADMIN_CLIENT_ID,
     ADMIN_CLIENT_SECRET,
+    CONVICTIONAL_API_KEY,
 } = process.env;
 
 const projectKey = 'convictional-buyer-api-example'
@@ -47,13 +47,12 @@ const createGetProjectRequest = {
     method: 'GET',
 };
 
-
 (async () => {
     try {
         // Use the `client.execute` method to send a message from this app
         await client.execute(createGetProjectRequest)
             .then(data => {
-                console.log('Project information --->', data);
+                console.log('Project information initialized');
             })
             .catch(error => {
                 console.log('ERROR --->', error);
@@ -63,3 +62,64 @@ const createGetProjectRequest = {
     }
     console.log('Got project information');
 })();
+
+
+// Product Routes
+// Fetch Convictional Products
+sdk.getBuyerProducts({
+  page: '0',
+  limit: '50',
+  Authorization: `${CONVICTIONAL_API_KEY}`
+})
+  .then(res => console.log(res))
+  .catch(err => console.error(err));
+
+
+// Fetch commercetools Products
+// Create a request to get product information
+const createGetProductsRequest = {
+    uri: `${projectService.build()}products`,
+    method: 'GET',
+};
+
+(async () => {
+    try {
+        // Use the `client.execute` method to send a message from this app
+        await client.execute(createGetProductsRequest)
+            .then(data => {
+                console.log('Products --->', data);
+            })
+            .catch(error => {
+                console.log('ERROR --->', error);
+            })
+    } catch (error) {
+        console.log('ERROR --->', error);
+    }
+    console.log('Fetched Products from commercetools');
+})();
+
+// Compare Product Arrays
+
+
+// Establish Deltas
+
+
+// Push Deltas into commercetools
+
+
+
+// Order Routes
+// Fetch commercetools Orders
+
+
+
+// Fetch Convictional Orders
+
+
+// Compare Order Arrays
+
+
+// Establish Deltas
+
+
+// Push Deltas into Convictional
