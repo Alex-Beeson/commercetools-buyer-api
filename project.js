@@ -7,7 +7,9 @@ const sdk = require('api')('@convictional/v1.0#1j0kv34kt0n3x28');
 
 require('dotenv').config()
 
-const { 
+console.log('App Loaded - Sync Beginning')
+
+const {
     ADMIN_CLIENT_ID,
     ADMIN_CLIENT_SECRET,
     CONVICTIONAL_API_KEY,
@@ -51,8 +53,8 @@ const createGetProjectRequest = {
     try {
         // Use the `client.execute` method to send a message from this app
         await client.execute(createGetProjectRequest)
-            .then(data => {
-                console.log('Project information initialized');
+            .then(res => {
+                console.log('commercetools Project Connected');
             })
             .catch(error => {
                 console.log('ERROR --->', error);
@@ -64,51 +66,107 @@ const createGetProjectRequest = {
 })();
 
 
-// Product Routes
-// Fetch Convictional Products
-sdk.getBuyerProducts({
-  page: '0',
-  limit: '50',
-  Authorization: `${CONVICTIONAL_API_KEY}`
-})
-  .then(res => console.log(res))
-  .catch(err => console.error(err));
+/* Product Routes */
 
+// Fetch Convictional Products
+
+const fetchConvictionalProducts = () => {
+    return sdk.getBuyerProducts({
+        page: '0',
+        limit: '50',
+        Authorization: `${CONVICTIONAL_API_KEY}`
+    })
+        .then(res => {
+            console.log(`${res.data.length} products fetched from Convictional`)
+            return res.data
+        })
+        .catch(err => console.error(err));
+
+}
 
 // Fetch commercetools Products
-// Create a request to get product information
-const createGetProductsRequest = {
-    uri: `${projectService.build()}products`,
-    method: 'GET',
-};
 
-(async () => {
-    try {
-        // Use the `client.execute` method to send a message from this app
-        await client.execute(createGetProductsRequest)
-            .then(data => {
-                console.log('Products --->', data);
+const fetchCommercetoolsProducts = () => {
+
+    // Create a request to get product information
+    const createGetProductsRequest = {
+        uri: `${projectService.build()}products`,
+        method: 'GET',
+    };
+
+    return client.execute(createGetProductsRequest)
+        .then(res => {
+            console.log(`${res.body.results.length} products fetched from commercetools`);
+            return res.body.results
+        })
+        .catch(error => {
+            console.log('ERROR --->', error);
+        })
+}
+
+// Compare Product Arrays and add to Delta Array
+const compareProductDatasets = async () => {
+
+    const convictionalProducts = await fetchConvictionalProducts();
+    const commercetoolsProducts = await fetchCommercetoolsProducts();
+
+    let productsToSync = [];
+    convictionalProducts.forEach(sourceProduct => {
+        
+        (function(){
+            console.log('Beginning Comparisons')
+            let isMatched = false
+            commercetoolsProducts.forEach(destinationProduct => {
+
+                if (sourceProduct.id == destinationProduct.id) {
+                    isMatched = true
+                }
             })
-            .catch(error => {
-                console.log('ERROR --->', error);
-            })
-    } catch (error) {
-        console.log('ERROR --->', error);
-    }
-    console.log('Fetched Products from commercetools');
-})();
+            if (isMatched == false) {
+                productsToSync.push(sourceProduct)
+            }
+        })()
+    })
 
-// Compare Product Arrays
+    console.log(`${productsToSync.length} products to sync`)
+    return productsToSync
+}
+compareProductDatasets()
+/*
 
-
-// Establish Deltas
 
 
 // Push Deltas into commercetools
+// Create a request to get product information
+const createPostProductsRequest = {
+    uri: `${projectService.build()}products`,
+    method: 'POST',
+};
+
+deltaProducts.forEach(product => {
+
+    (async () => {
+        try {
+            // Use the `client.execute` method to send a message from this app
+            await client.execute(createPostProductsRequest)
+                .then(res => {
+                    console.log('Products --->', res);
+                    commercetoolsProducts.push(res.body.results)
+                })
+                .catch(error => {
+                    console.log('ERROR --->', error);
+                })
+        } catch (error) {
+            console.log('ERROR --->', error);
+        }
+        console.log('Fetched Products from commercetools');
+    })();
+
+})
+*/
 
 
-
-// Order Routes
+/* Order Routes */
 // Fetch commercetools Orders
 
 
