@@ -106,65 +106,103 @@ const fetchCommercetoolsProducts = () => {
 
 // Compare Product Arrays and add to Delta Array
 const compareProductDatasets = async () => {
-
+    console.log('Beginning Comparisons');
     const convictionalProducts = await fetchConvictionalProducts();
     const commercetoolsProducts = await fetchCommercetoolsProducts();
+    let productsToSync = convictionalProducts;
+    /* 
+    let comparisonSource = convictionalProducts;
+    let comparisonDestination = [];
+    const compareLooper = (source, destination) => {
+        let productsToSync = source;
+        source.forEach(function (sourceProduct, i) {
 
-    let productsToSync = [];
-    convictionalProducts.forEach(sourceProduct => {
-        
-        (function(){
-            console.log('Beginning Comparisons')
-            let isMatched = false
-            commercetoolsProducts.forEach(destinationProduct => {
+            destination.forEach(function (destinationProduct, j) {
 
-                if (sourceProduct.id == destinationProduct.id) {
-                    isMatched = true
+                if (sourceProduct.id == destinationProduct.key) {
+                    productsToSync.splice(i,1)
                 }
             })
-            if (isMatched == false) {
-                productsToSync.push(sourceProduct)
-            }
-        })()
     })
+    console.log(`${productsToSync.length} products to sync`)
+    return productsToSync
+    };
+   */
+    productsToSync.forEach(function (sourceProduct, i) {
 
+            commercetoolsProducts.forEach(function (destinationProduct, j) {
+
+                if (sourceProduct.id == destinationProduct.key) {
+                    productsToSync.splice(i,1)
+                }
+            })
+    })
     console.log(`${productsToSync.length} products to sync`)
     return productsToSync
 }
-compareProductDatasets()
-/*
-
-
 
 // Push Deltas into commercetools
+const pushProductInformation = async () => {
+    console.log('Beginning Push of Product Information');
+    let successfullyPushedProducts = [];
+    const productsToPush = await compareProductDatasets();
+    
+    productsToPush.forEach(product => {
 // Create a request to get product information
-const createPostProductsRequest = {
-    uri: `${projectService.build()}products`,
-    method: 'POST',
-};
+        let urlSlug = encodeURIComponent(product.title.replace(/\s+/g, '-').replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, '').toLowerCase());
+        let retailPrice = Math.round((product.variants[0].retailPrice)*100);
+        const createPostProductsRequest = {
+            uri: `${projectService.build()}products`,
+            method: 'POST',
+            body: {
+                "key": `${product.id}`,
+                "name": {
+                    "en": `${product.title}`
+                },
+                "productType": {
+                    "key": "home-goods"
+                },
+                "slug": {
+                    "en": `${urlSlug}`
+                },
+                "description": {
+                    "en": `${product.description}`
+                },
+                "masterVariant": {
+                    "sku": `${product.variants[0].sku}`,
+                    "key": `${product.variants[0].id}`,
+                    "prices": [
+                        {
+                            "value": {
+                                "currencyCode": "USD",
+                                "centAmount": retailPrice
+                            }
+                        }],
+                    "images": [
+                        {
+                            "url": `${product.images[0].source}`,
+                            "dimensions": {
+                                "w": 400,
+                                "h": 400
+                            }
+                        }
+                    ]
+                }
+            },
+        };
+        client.execute(createPostProductsRequest)
+            .then(res => {
+                successfullyPushedProducts.push(res.body);
+                console.log(`product synced`);
+                return res.body.results
+            })
+            .catch(error => {
+                console.log('ERROR --->', error.body.errors);
+            })
 
-deltaProducts.forEach(product => {
-
-    (async () => {
-        try {
-            // Use the `client.execute` method to send a message from this app
-            await client.execute(createPostProductsRequest)
-                .then(res => {
-                    console.log('Products --->', res);
-                    commercetoolsProducts.push(res.body.results)
-                })
-                .catch(error => {
-                    console.log('ERROR --->', error);
-                })
-        } catch (error) {
-            console.log('ERROR --->', error);
-        }
-        console.log('Fetched Products from commercetools');
-    })();
-
-})
-*/
-
+    })
+}
+pushProductInformation();
 
 /* Order Routes */
 // Fetch commercetools Orders
