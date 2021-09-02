@@ -64,6 +64,7 @@ const createGetProjectRequest = {
     }
     console.log('Got project information');
 })();
+// End Auth Middlewares
 
 
 /* Product Routes */
@@ -86,7 +87,7 @@ const fetchConvictionalProducts = () => {
 
 // Fetch commercetools Products
 
-const fetchCommercetoolsProducts = () => {
+const fetchCommercetoolsProducts = async () => {
 
     // Create a request to get product information
     const createGetProductsRequest = {
@@ -109,35 +110,17 @@ const compareProductDatasets = async () => {
     console.log('Beginning Comparisons');
     const convictionalProducts = await fetchConvictionalProducts();
     const commercetoolsProducts = await fetchCommercetoolsProducts();
-    let productsToSync = convictionalProducts;
-    /* 
-    let comparisonSource = convictionalProducts;
-    let comparisonDestination = [];
-    const compareLooper = (source, destination) => {
-        let productsToSync = source;
-        source.forEach(function (sourceProduct, i) {
 
-            destination.forEach(function (destinationProduct, j) {
+let productsToSync = convictionalProducts.filter(function (sourceProduct) {
+    return !commercetoolsProducts.some(function (destinationProduct) {
+        return sourceProduct.id === destinationProduct.key; // return the ones with equal id
+   });
+});
 
-                if (sourceProduct.id == destinationProduct.key) {
-                    productsToSync.splice(i,1)
-                }
-            })
-    })
     console.log(`${productsToSync.length} products to sync`)
-    return productsToSync
-    };
-   */
-    productsToSync.forEach(function (sourceProduct, i) {
-
-            commercetoolsProducts.forEach(function (destinationProduct, j) {
-
-                if (sourceProduct.id == destinationProduct.key) {
-                    productsToSync.splice(i,1)
-                }
-            })
+    productsToSync.forEach(product =>{
+        console.log(product.title);
     })
-    console.log(`${productsToSync.length} products to sync`)
     return productsToSync
 }
 
@@ -197,17 +180,54 @@ const pushProductInformation = async () => {
                 return res.body.results
             })
             .catch(error => {
-                console.log('ERROR --->', error.body.errors);
+                console.log('ERROR --->', error.body.errors.length);
             })
 
     })
 }
 pushProductInformation();
 
+
 /* Order Routes */
 // Fetch commercetools Orders
+const fetchCommercetoolsOrders = async () => {
+
+    // Create a request to get product information
+    const createGetOrdersRequest = {
+        uri: `${projectService.build()}orders`,
+        method: 'GET',
+    };
+
+    return client.execute(createGetOrdersRequest)
+        .then(res => {
+            console.log(`${res.body.results.length} orders fetched from commercetools`);
+            return res.body.results
+        })
+        .catch(error => {
+            console.log('ERROR --->', error);
+        })
+}
+
+// Filter to just those that contain Convictional Products
+const filterCommercetoolsOrders = async () => {
+    console.log('Beginning Order Filter');
+    const fetchedOrders = await fetchCommercetoolsOrders();
+    const convictionalProducts = await fetchConvictionalProducts();
+
+    let convictionalProductIds = convictionalProducts.map(product => product.variants[0].id);
 
 
+    let filteredOrders = fetchedOrders.filter(function (order) {
+
+        return order.lineItems.some(function (lineItem) {
+            convictionalProductIds.includes(lineItem.variant.key)
+             return order
+            });
+    });
+    console.log(`${filteredOrders.length} orders include Convictional products`)
+    return filteredOrders
+}
+filterCommercetoolsOrders();
 
 // Fetch Convictional Orders
 
