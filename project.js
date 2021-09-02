@@ -127,7 +127,6 @@ let productsToSync = convictionalProducts.filter(function (sourceProduct) {
 // Push Deltas into commercetools
 const pushProductInformation = async () => {
     console.log('Beginning Push of Product Information');
-    let successfullyPushedProducts = [];
     const productsToPush = await compareProductDatasets();
     
     productsToPush.forEach(product => {
@@ -175,8 +174,7 @@ const pushProductInformation = async () => {
         };
         client.execute(createPostProductsRequest)
             .then(res => {
-                successfullyPushedProducts.push(res.body);
-                console.log(`product synced`);
+                console.log(`${product.title} synced`);
                 return res.body.results
             })
             .catch(error => {
@@ -227,15 +225,77 @@ const filterCommercetoolsOrders = async () => {
     console.log(`${filteredOrders.length} orders include Convictional products`)
     return filteredOrders
 }
-filterCommercetoolsOrders();
 
 // Fetch Convictional Orders
+const fetchConvictionalOrders = () => {
+    return sdk.getBuyerOrders({
+        page: '0',
+        limit: '50',
+        Authorization: `${CONVICTIONAL_API_KEY}`
+    })
+        .then(res => {
+            console.log(`${res.data.length} orders fetched from Convictional`)
+            return res.data
+        })
+        .catch(err => console.error(err));
 
+}
 
-// Compare Order Arrays
+// Compare Order Arrays and add to Delta Array
+const compareOrderDatasets = async () => {
+    console.log('Beginning Order Comparisons');
+    const convictionalOrders = await fetchConvictionalOrders();
+    const commercetoolsOrders = await filterCommercetoolsOrders();
 
+let ordersToSync = commercetoolsOrders.filter(function (sourceOrder) {
+    return !convictionalOrders.some(function (destinationOrder) {
+        return sourceOrder.id === destinationOrder[buyerReference]; // return the ones with equal id
+   });
+});
 
-// Establish Deltas
-
+    console.log(`${ordersToSync.length} orders to sync`)
+    return ordersToSync
+}
 
 // Push Deltas into Convictional
+const pushOrderInformation = async () => {
+    console.log('Beginning Push of Orders');
+    const ordersToPush = await compareOrderDatasets();
+    
+    ordersToPush.forEach(order => {
+        
+        const postBody = {
+            buyerReference: order.id,
+            orderedDate: order.createdAt,
+            address: {
+                name: `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`,
+                addressOne: `${order.shippingAddress.streetNumber} ${order.shippingAddress.streetName}`,
+                addressTwo: order.shippingAddress.additionalStreetInfo,
+                city: order.shippingAddress.city,
+                state: order.shippingAddress.state,
+                country: order.shippingAddress.country,
+                zip: order.shippingAddress.postalCode, 
+            },
+            items:[
+                order.lineItems.forEach(lineItem => {
+                    let lineItemPrice = (lineItem.price.value.centAmount)/100;
+                    return (
+                        `{
+                            ${variantId}: ${lineItem.variant.key},
+                            ${buyerReference}: ${lineItem.id},
+                                ${quantity}: ${lineItem.quantity},
+                                    ${price}: ${lineItemPrice}
+                        },`
+                    )
+                })
+            ],
+            note: `commercetools Order id: ${order.id}`
+        };
+
+        sdk.postBuyerOrder(postBody)
+        .then(res => console.log(`order ${order.id} synced`))
+        .catch(err => console.error(err));
+
+    })
+}
+pushOrderInformation();
